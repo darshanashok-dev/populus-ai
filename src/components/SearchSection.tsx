@@ -4,10 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { api } from "@/lib/api";
 
 export const SearchSection = () => {
   const [query, setQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]); // Added state for results
   const { toast } = useToast();
 
   const handleSearch = async () => {
@@ -20,16 +22,25 @@ export const SearchSection = () => {
     }
 
     setIsSearching(true);
-    
-    // TODO: Integrate with AWS Bedrock backend
-    // This is where you'll call your AWS Bedrock agent
-    setTimeout(() => {
-      setIsSearching(false);
+
+    try {
+      // Call AWS Bedrock backend
+      const results = await api.searchPapers({ query });
+      setSearchResults(results.results);
+
       toast({
-        title: "Search initiated",
-        description: "Connect your AWS Bedrock backend to see results",
+        title: "Search complete",
+        description: `Found ${results.results.length} papers`,
       });
-    }, 1500);
+    } catch (error) {
+      toast({
+        title: "Search failed",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   return (
@@ -57,7 +68,7 @@ export const SearchSection = () => {
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               className="flex-1 bg-background border-border"
             />
-            <Button 
+            <Button
               onClick={handleSearch}
               disabled={isSearching}
               className="bg-gradient-primary hover:opacity-90 transition-opacity shadow-lavender"
@@ -69,9 +80,20 @@ export const SearchSection = () => {
 
           <div className="bg-muted rounded-lg p-8 text-center">
             <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <p className="text-muted-foreground">
-              Search results will appear here once connected to AWS Bedrock
-            </p>
+            {searchResults.length > 0 ? (
+              <ul className="text-left max-h-64 overflow-y-auto">
+                {searchResults.map((paper, idx) => (
+                  <li key={idx} className="mb-2">
+                    <strong>{paper.title}</strong>
+                    <p className="text-sm text-muted-foreground">{paper.abstract}</p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground">
+                Search results will appear here once connected to AWS Bedrock
+              </p>
+            )}
           </div>
         </Card>
 
